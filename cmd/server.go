@@ -4,16 +4,17 @@ import (
 	"database/sql"
 	"log"
 	mdb "mailing-list/pkg/db"
+	"mailing-list/pkg/grpcapi"
 	"mailing-list/pkg/jsonapi"
 	"sync"
 
 	"github.com/alexflint/go-arg"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 var args struct {
 	DbPath   string `arg:"env:MAILINGLST_DB"`
 	BindJSON string `arg:"env:MAILINGLST_BIND_JSON"`
+	BindGRPC string `arg:"env:MAILINGLST_BIND_GRPC"`
 }
 
 func main() {
@@ -25,6 +26,10 @@ func main() {
 
 	if args.BindJSON == "" {
 		args.BindJSON = ":8080"
+	}
+
+	if args.BindGRPC == "" {
+		args.BindGRPC = ":8081"
 	}
 
 	log.Printf("using database '%v'", args.DbPath)
@@ -43,6 +48,13 @@ func main() {
 	go func() {
 		log.Printf("Starting JSON API")
 		jsonapi.Serve(db, args.BindJSON)
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		log.Printf("Starting GRPC API")
+		grpcapi.Serve(db, args.BindGRPC)
 		wg.Done()
 	}()
 
